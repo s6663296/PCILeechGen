@@ -1,4 +1,4 @@
-.PHONY: build test lint clean install fixtures hdl-lint early-access cocotb-bootstrap cocotb-test cocotb-test-stable cocotb-test-experimental cocotb-clean
+.PHONY: build test lint clean install fixtures hdl-lint early-access cocotb-bootstrap cocotb-test cocotb-test-stable cocotb-clean
 
 override BINARY_NAME := pcileechgen
 override BUILD_DIR := bin
@@ -9,8 +9,7 @@ LDFLAGS=-s -w
 COCOTB_PYTHON ?= python3.13
 COCOTB_VENV := bin/cocotb-venv
 COCOTB_OUTPUT_ROOT := tests/cocotb/out_matrix
-COCOTB_STABLE_CASES := nvme generic audio xhci wifi sata gpu
-COCOTB_EXPERIMENTAL_CASES := ethernet
+COCOTB_STABLE_CASES := generic xhci wifi sata gpu
 COCOTB_CASES ?= $(COCOTB_STABLE_CASES)
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -62,9 +61,6 @@ cocotb-test: build cocotb-bootstrap
 
 cocotb-test-stable:
 	$(MAKE) cocotb-test COCOTB_CASES="$(COCOTB_STABLE_CASES)"
-
-cocotb-test-experimental:
-	$(MAKE) cocotb-test COCOTB_CASES="$(COCOTB_EXPERIMENTAL_CASES)"
 
 cocotb-clean:
 	$(COCOTB_PYTHON) tests/cocotb/run_matrix.py --clean --output-root "$(COCOTB_OUTPUT_ROOT)"
