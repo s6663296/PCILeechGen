@@ -18,8 +18,6 @@ Discord Community: https://discord.gg/kcWVCAhNSg
 
 SPECIAL THANKS
 --------------
-  Pachi Tactico  Sponsorship
-                 https://hypservicesdma.com
   FTWDMA         Sponsorship
                  https://ftwdma.com
   Santiago       NVMe and firmware contributions
@@ -88,64 +86,17 @@ COMMANDS
     --from-json <f>    offline build from saved device_context.json
     --output <dir>     output directory (default: pcileech_datastore)
 
-  Output directories are ownership-protected. Point --output at a new path;
-  later builds may reuse it only when it contains PCILeechGen's generated
-  ownership marker. This prevents generated artifacts from overwriting an
-  arbitrary existing directory.
-
-  Offline MMIO trace import:
-    pcileechgen mmio-trace --trace-file mmiotrace.txt --bar-base 0xf7800000 \
-      --bar-index 2 --bar-size 4096 --class-code 0x010802 --json
-
-
-VMD / INTEL RST HOST PLACEMENT
-------------------------------
-  The generated endpoint presents as an NVMe controller (PCIe class code
-  010802), not an Intel VMD controller. Intel VMD ownership is selected by
-  the host BIOS for a specific root port or port group, so the card must sit
-  on a VMD-mapped port or adapter path to come up under VMD.
-
-  Requirements for VMD / Intel RST operation:
-    - Intel CPU, 11th generation or newer, in the host that holds the card.
-    - Intel VMD enabled in BIOS for the physical PCIe port or M.2 adapter
-      path used by the card.
-    - Matching Intel RST / VMD drivers installed on Windows.
-
-  If Windows lists the board as a generic SCSI or storage controller with no
-  NVMe driver, the active bitstream was built with the wrong PCIe class code.
-  Keep the endpoint class as 010802 and use a VMD-mapped slot or adapter path.
+  Output directories are ownership-protected. Use a new --output path for the
+  first build. Run "pcileechgen <command> --help" for command-specific options.
 
 
 FEATURES
 --------
-  Device identity
-    - VID/DID/REV, subsystem IDs, class code
-    - Device Serial Number (stripped when the donor has none)
-
-  BAR emulation
-    - dynamic BAR0 sizing from the donor (capped by board bram_size)
-    - 64-bit BAR preservation, power-of-2 rounding
-    - MSI-X table placement that avoids NVMe doorbell overlap
-
-  NVMe
-    - CC.EN -> CSTS.RDY handshake
-    - admin queue responder (Identify, Features, Create IO CQ/SQ)
-    - DMA bridge (doorbell + completion)
-
-  Config space
-    - 4KB shadow + 17-pass scrubbing pipeline
-    - per-register write masks, capability filtering/pruning
-    - PCIe cap injection, power-management lock, vendor quirks
-
-  Stealth and timing
-    - TLP latency emulation (xorshift128+ CDF reproduction)
-    - write-completion emulation, completion timeout
-    - ASPM clamping, AER mask normalization, DSN jitter
-    - per-build placement randomization, VSEC entropy embed
-
-  Diagnostics
-    - VFIO diagnostics, BAR vs BRAM compatibility checks
-    - post-build validation, build manifest, config-space diff report
+  - captures PCIe identity, config space, BARs and capabilities
+  - generates donor-sized BAR models and MSI-X tables
+  - emulates the NVMe admin queue and DMA flow
+  - scrubs config space and preserves register write behavior
+  - validates donor/board compatibility and generated artifacts
 
 
 SUPPORTED BOARDS
@@ -170,36 +121,15 @@ SUPPORTED BOARDS
   litefury          XC7A100T-484   x4     M.2
   sp605_ft601       XC6SLX45T-484  x1     Dev Board
 
-  Boards with larger bram_size (EnigmaX1=8K, CaptainDMA_75T=16K,
-  CaptainDMA_100T / ZDMA / NeTV2_100T / ac701_ft601 / acorn / litefury=32K)
-  support larger BAR0 emulation. Run "boards" for the full list.
+  Donor compatibility is checked separately. Run "pcileechgen boards" for
+  current board details.
 
 
 OUTPUT
 ------
-  pcileech_datastore/
-    device_context.json                 donor snapshot
-    pcileech_cfgspace.coe               4KB scrubbed config space
-    pcileech_cfgspace_writemask.coe     per-register write masks
-    pcileech_bar_zero4k.coe             BAR0 content (sized to donor/BRAM)
-    pcileech_bar_impl_device.sv         register-level BAR implementation
-    pcileech_tlps128_bar_controller.sv  TLP BAR controller
-    pcileech_tlp_normalizer.sv           normalized MRd/MWr decode + decisions
-    pcileech_tlps128_bar_rdengine.sv     BE/RCB/MPS-aware read completions
-    pcileech_tlp_ur_completer.sv        unsupported non-posted completions
-    pcileech_msix_table.sv              MSI-X table + PBA
-    pcileech_nvme_admin_responder.sv    (if NVMe)
-    pcileech_nvme_dma_bridge.sv         (if NVMe)
-    tlp_latency_emulator.sv             response latency emulation
-    device_config.sv                    identity + feature flags
-    config_space_init.hex               config space init ($readmemh)
-    msix_table_init.hex                 MSI-X table init ($readmemh)
-    identify_init.hex                   NVMe Identify ROM (if NVMe)
-    vivado_generate_project.tcl         project creation
-    vivado_build.tcl                    synthesis script
-    build_manifest.json                 checksums + metadata
-    src/                                patched board SV sources
-    *.bin                               bitstream (after Vivado)
+  The output directory contains the donor snapshot, generated RTL/IP source,
+  config-space data, build manifest and validation reports. A normal Vivado
+  build also includes the final bitstream.
 
 
 DEVELOPMENT
@@ -208,55 +138,6 @@ DEVELOPMENT
   make test-coverage  tests with coverage report
   make lint           run linter
   make check          vet + lint + test
-
-
-UTILITIES
----------
-Windows device-history cleanup
-
-  After flashing and testing, Windows can cache PCI/USB device metadata in
-  the registry. Stale entries from earlier builds can cause conflicts, Code 10
-  errors, or driver misidentification. The tools/ directory has an interactive
-  cleanup utility:
-
-    cleanup_device_history.bat      double-click launcher (runs as Admin)
-    cleanup_device_history.ps1      PowerShell script with an interactive selector
-
-  Usage:
-    double-click cleanup_device_history.bat and confirm the UAC prompt, or
-    open PowerShell as Administrator and run: .\cleanup_device_history.ps1
-
-  Safety properties:
-    - scans only PCI and USB instance keys in dynamically discovered,
-      numbered ControlSets; it never acts through CurrentControlSet
-    - exports every selected key before mutation; the manifest binds each
-      absolute backup path to its byte length and SHA-256 digest
-    - on failure, attempts both verified `.reg` re-import and restoration of the
-      original DeviceInstall service state, even if service restoration is the
-      first error
-    - supports PowerShell WhatIf mode with zero writes:
-
-        .\cleanup_device_history.ps1 -WhatIf
-
-    - keeps setupapi/event-log/metadata purging opt-in; that irreversible mode
-      always asks for the exact phrase `PURGE DEVICE HISTORY`
-
-  To restore a failed cleanup manually, import each `.reg` file listed in the
-  backup directory's `manifest.json` after checking its recorded SHA-256, for
-  example:
-
-    reg import "C:\Users\you\Desktop\PCILeechGen-DeviceHistory-YYYYMMDD-HHMMSS-GUID\registry-000.reg"
-
-  Recovery scope: `.reg` export/import preserves registry keys and values, but
-  not key ownership, ACLs, or other security descriptors. The optional purge of
-  setup logs, event logs, and device metadata is irreversible and is never
-  represented by the registry backup.
-
-  Developer safety tests require Windows PowerShell 5.1 and exactly Pester
-  5.7.1. CI installs that version side-by-side with Windows' bundled Pester 3.4.
-
-  Requires Administrator privileges. Reboot after cleanup before reconnecting
-  the device.
 
 
 LICENSE
