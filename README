@@ -1,8 +1,4 @@
-PCILeechGen
 
-Custom firmware generator for PCILeech FPGA boards. Reads a real PCI/PCIe
-donor device through VFIO, clones its identity (config space, BARs,
-capabilities), and builds a ready-to-flash .bin bitstream via Vivado.
 
 PREREQUISITES
 -------------
@@ -14,18 +10,6 @@ PREREQUISITES
   (intel_iommu=on or amd_iommu=on).
 
 
-HOW IT WORKS
-------------
-  scan  ->  check  ->  build  ->  flash
-
-  scan     enumerate PCI devices, detect VFIO status
-  check    validate the donor device, read config space and BARs
-  build    clone identity -> generate SV/COE/TCL -> Vivado synthesis -> .bin
-  flash    write the bitstream to the FPGA board
-
-The donor device is read through VFIO; its config space, BARs and
-capabilities are cloned, scrubbed, and compiled into ready-to-flash
-firmware. Run the stages in order.
 
 
 QUICK START
@@ -64,39 +48,7 @@ COMMANDS
   first build. Run "pcileechgen <command> --help" for command-specific options.
 
 
-FEATURES
---------
-  - captures PCIe identity, config space, BARs and capabilities
-  - generates donor-sized BAR models and MSI-X tables
-  - emulates the NVMe admin queue and DMA flow
-  - scrubs config space and preserves register write behavior
-  - validates donor/board compatibility and generated artifacts
 
-
-SUPPORTED BOARDS
-----------------
-  Board             FPGA           Lanes  Form factor
-  --------------    -----------    -----  -----------
-  CaptainDMA_M2_x1  XC7A35T-325    x1     M.2
-  CaptainDMA_M2_x4  XC7A35T-325    x4     M.2
-  CaptainDMA_35T    XC7A35T-484    x1     PCIe
-  CaptainDMA_75T    XC7A75T-484    x1     PCIe
-  CaptainDMA_100T   XC7A100T-484   x1     PCIe
-  ScreamerM2        XC7A35T-325    x1     M.2
-  pciescreamer      XC7A35T-484    x1     PCIe
-  NeTV2_35T         XC7A35T-484    x1     M.2
-  NeTV2_100T        XC7A100T-484   x1     M.2
-  PCIeSquirrel      XC7A35T-484    x1     PCIe
-  EnigmaX1          XC7A75T-484    x1     PCIe
-  ZDMA              XC7A100T-484   x4     PCIe
-  GBOX              XC7A35T-484    x1     Mini PCIe
-  ac701_ft601       XC7A200T-676   x4     Dev Board
-  acorn             XC7A200T-484   x4     M.2
-  litefury          XC7A100T-484   x4     M.2
-  sp605_ft601       XC6SLX45T-484  x1     Dev Board
-
-  Donor compatibility is checked separately. Run "pcileechgen boards" for
-  current board details.
 
 
 OUTPUT
@@ -113,11 +65,3 @@ DEVELOPMENT
   make lint           run linter
   make check          vet + lint + test
 
-
-LICENSE
--------
-  PolyForm Noncommercial License 1.0.0
-  https://github.com/sercanarga/PCILeechGen/blob/main/LICENSE.md
-
-  Unlicensed (fork pcileech-fpga modules)
-  https://github.com/sercanarga/pcileech-fpga
