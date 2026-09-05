@@ -3,6 +3,9 @@
 For the opt-in NVMe 1.3 optional-descriptor phase, its specification references,
 capability gates and exclusions, see [NVME_PHASE2.md](NVME_PHASE2.md).
 
+The native-driver read-only Identify and Log Page phase is documented in
+[NVME_PHASE3.md](NVME_PHASE3.md). It performs no additional direct BAR reads.
+
 ## Finding
 
 The former sysfs collection path was `Collector.Collect` -> `collectBARMemory`

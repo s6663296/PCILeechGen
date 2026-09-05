@@ -34,6 +34,8 @@ type CollectOptions struct {
 	NVMeMSIXSnapshot string
 	// NVMeOptionalSnapshot enables the reviewed NVMe 1.3 descriptor-only policy.
 	NVMeOptionalSnapshot bool
+	// NVMeAdminSnapshot enables capability-gated native-driver read-only admin commands.
+	NVMeAdminSnapshot bool
 }
 
 func NewCollectorWithOptions(options CollectOptions) *Collector {
@@ -80,6 +82,9 @@ func (c *Collector) Collect(bdf pci.BDF) (*DeviceContext, error) {
 	if c.options.NVMeOptionalSnapshot && dev.Driver != "nvme" {
 		return nil, fmt.Errorf("--nvme-optional-snapshot requires the native nvme driver already bound; no automatic rebind for this mode")
 	}
+	if c.options.NVMeAdminSnapshot && (!isNVMeClass(dev.ClassCode) || dev.Driver != "nvme") {
+		return nil, fmt.Errorf("--nvme-native-snapshot requires an NVMe donor with the native nvme driver already bound")
+	}
 
 	cs, err := c.collectConfigSpace(bdf)
 	if err != nil {
@@ -109,6 +114,9 @@ func (c *Collector) Collect(bdf pci.BDF) (*DeviceContext, error) {
 	ctx.ExtCapabilities = pci.ParseExtCapabilities(cs)
 	ctx.MSIXData = c.collectMSIXData(cs, ctx.BARContents)
 	ctx.NVMeIdentity = c.collectNVMeIdentity(bdf, ctx.Device.ClassCode, visit)
+	if err := c.collectNVMeAdminSnapshot(ctx); err != nil {
+		return nil, err
+	}
 
 	if err := c.validateBARContents(ctx); err != nil {
 		return nil, err

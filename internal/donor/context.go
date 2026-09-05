@@ -11,6 +11,7 @@ import (
 
 	"github.com/sercanarga/pcileechgen/internal/donor/baraccess"
 	"github.com/sercanarga/pcileechgen/internal/donor/behavior"
+	"github.com/sercanarga/pcileechgen/internal/donor/nvmeadmin"
 	"github.com/sercanarga/pcileechgen/internal/pci"
 )
 
@@ -52,6 +53,7 @@ type DeviceContext struct {
 	MSIXData        *MSIXData                   `json:"msix_data,omitempty"`
 	NVMeIdentity    *NVMeIdentity               `json:"nvme_identity,omitempty"`
 	NVMeOptional    *baraccess.OptionalSnapshot `json:"nvme_optional_snapshot,omitempty"`
+	NVMeAdmin       *nvmeadmin.Snapshot         `json:"nvme_admin_snapshot,omitempty"`
 	BehaviorRules   *behavior.RuleSet           `json:"behavior_rules,omitempty"`
 }
 
@@ -71,6 +73,7 @@ type deviceContextJSON struct {
 	MSIXData        *MSIXData                   `json:"msix_data,omitempty"`
 	NVMeIdentity    *NVMeIdentity               `json:"nvme_identity,omitempty"`
 	NVMeOptional    *baraccess.OptionalSnapshot `json:"nvme_optional_snapshot,omitempty"`
+	NVMeAdmin       *nvmeadmin.Snapshot         `json:"nvme_admin_snapshot,omitempty"`
 	BehaviorRules   *behavior.RuleSet           `json:"behavior_rules,omitempty"`
 }
 
@@ -86,6 +89,7 @@ func (dc *DeviceContext) MarshalJSON() ([]byte, error) {
 		MSIXData:        dc.MSIXData,
 		NVMeIdentity:    dc.NVMeIdentity,
 		NVMeOptional:    dc.NVMeOptional,
+		NVMeAdmin:       dc.NVMeAdmin,
 		BehaviorRules:   dc.BehaviorRules,
 	}
 
@@ -136,6 +140,7 @@ func (dc *DeviceContext) UnmarshalJSON(data []byte) error {
 	dc.MSIXData = j.MSIXData
 	dc.NVMeIdentity = j.NVMeIdentity
 	dc.NVMeOptional = j.NVMeOptional
+	dc.NVMeAdmin = j.NVMeAdmin
 	dc.BehaviorRules = j.BehaviorRules
 
 	// Reconstruct config space from hex words

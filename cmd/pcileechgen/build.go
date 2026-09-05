@@ -30,6 +30,7 @@ type buildFlags struct {
 	force                bool
 	nvmeMSIXSnapshot     string
 	nvmeOptionalSnapshot bool
+	nvmeAdminSnapshot    bool
 }
 
 var buildOpts buildFlags
@@ -108,6 +109,9 @@ func loadDonorContext() (*donor.DeviceContext, error) {
 	if buildOpts.nvmeOptionalSnapshot && buildOpts.fromJSON != "" {
 		return nil, fmt.Errorf("--nvme-optional-snapshot requires live --bdf collection; cannot be used with --from-json")
 	}
+	if buildOpts.nvmeAdminSnapshot && buildOpts.fromJSON != "" {
+		return nil, fmt.Errorf("--nvme-native-snapshot requires live --bdf collection; cannot be used with --from-json")
+	}
 	msixMode, err := baraccess.ParseMSIXSnapshotMode(buildOpts.nvmeMSIXSnapshot)
 	if err != nil {
 		return nil, err
@@ -136,6 +140,7 @@ func loadDonorContext() (*donor.DeviceContext, error) {
 		slog.Info("collecting donor device data")
 		collector := donor.NewCollectorWithOptions(donor.CollectOptions{
 			NVMeMSIXSnapshot: string(msixMode), NVMeOptionalSnapshot: buildOpts.nvmeOptionalSnapshot,
+			NVMeAdminSnapshot: buildOpts.nvmeAdminSnapshot,
 		})
 		ctx, err = collector.Collect(bdf)
 		if err != nil {
@@ -193,6 +198,7 @@ func init() {
 	buildCmd.Flags().BoolVar(&buildOpts.force, "force", false, "ignore donor BAR > board BRAM check")
 	buildCmd.Flags().StringVar(&buildOpts.nvmeMSIXSnapshot, "nvme-msix-snapshot", "off", "EXPERIMENTAL live NVMe BAR0 MSI-X diagnostic snapshot: off, table, pba, all (targeted MMIO can still reboot the host)")
 	buildCmd.Flags().BoolVar(&buildOpts.nvmeOptionalSnapshot, "nvme-optional-snapshot", false, "EXPERIMENTAL NVMe 1.3 CMBSZ, conditional CMBLOC and CAP-gated BPINFO diagnostic reads; no memory dump or writes")
+	buildCmd.Flags().BoolVar(&buildOpts.nvmeAdminSnapshot, "nvme-native-snapshot", false, "EXPERIMENTAL NVMe 1.3 native-driver read-only Identify and capability-gated Log Page snapshot; no raw BAR reads")
 
 	_ = buildCmd.MarkFlagRequired("board")
 

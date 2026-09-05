@@ -382,7 +382,7 @@ func (sr *SysfsReader) ReadNVMeRawIdentify(bdf pci.BDF, cns uint32, nsid uint32)
 		timeoutMs: 5000,
 	}
 
-	_, _, errno := syscall.Syscall(
+	ret, _, errno := syscall.Syscall(
 		syscall.SYS_IOCTL,
 		f.Fd(),
 		nvmeIOCAdminCmd,
@@ -392,6 +392,9 @@ func (sr *SysfsReader) ReadNVMeRawIdentify(bdf pci.BDF, cns uint32, nsid uint32)
 	runtime.KeepAlive(buf)
 	if errno != 0 {
 		return nil, fmt.Errorf("NVMe ioctl failed (cns=%d): %w", cns, errno)
+	}
+	if ret != 0 {
+		return nil, fmt.Errorf("NVMe Identify failed (cns=%d) with status %#x", cns, ret)
 	}
 
 	return buf, nil
