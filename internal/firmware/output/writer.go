@@ -366,6 +366,8 @@ func (ow *OutputWriter) writeDeviceModel(ctx *donor.DeviceContext, scrubbedCS *p
 	if err != nil {
 		return fmt.Errorf("failed to build device model: %w", err)
 	}
+	// Diagnostic provenance only; never feeds register resets or SV generation.
+	model.NVMeTraceEvidence = ctx.NVMeTrace
 	if scrubbedCS != nil {
 		size := scrubbedCS.Size
 		if size > len(scrubbedCS.Data) {

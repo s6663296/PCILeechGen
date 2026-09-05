@@ -1,6 +1,9 @@
 package devicemodel
 
-import "time"
+import (
+	"github.com/sercanarga/pcileechgen/internal/donor/nvmetrace"
+	"time"
+)
 
 const CurrentSchemaVersion = 1
 
@@ -64,6 +67,7 @@ type Model struct {
 	Interrupts          []InterruptDescriptor `json:"interrupts"`
 	MSIX                *MSIXDescriptor       `json:"msix,omitempty"`
 	NVMeIdentify        *NVMeIdentify         `json:"nvme_identify,omitempty"`
+	NVMeTraceEvidence   *nvmetrace.Evidence   `json:"nvme_trace_evidence,omitempty"`
 	Transformations     []Transformation      `json:"transformations"`
 	UnsupportedFeatures []UnsupportedFeature  `json:"unsupported_features"`
 	Confidence          Confidence            `json:"confidence"`

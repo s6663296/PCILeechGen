@@ -31,6 +31,8 @@ type buildFlags struct {
 	nvmeMSIXSnapshot     string
 	nvmeOptionalSnapshot bool
 	nvmeAdminSnapshot    bool
+	nvmeTrace            string
+	nvmeTraceController  string
 }
 
 var buildOpts buildFlags
@@ -106,6 +108,9 @@ func runBuild(cmd *cobra.Command, args []string) error {
 func loadDonorContext() (*donor.DeviceContext, error) {
 	var ctx *donor.DeviceContext
 	var err error
+	if (buildOpts.nvmeTrace != "" || buildOpts.nvmeTraceController != "") && (buildOpts.fromJSON == "" || buildOpts.nvmeTrace == "" || buildOpts.nvmeTraceController == "") {
+		return nil, fmt.Errorf("--nvme-trace and --nvme-trace-controller require each other and --from-json; offline import only")
+	}
 	if buildOpts.nvmeOptionalSnapshot && buildOpts.fromJSON != "" {
 		return nil, fmt.Errorf("--nvme-optional-snapshot requires live --bdf collection; cannot be used with --from-json")
 	}
@@ -147,6 +152,12 @@ func loadDonorContext() (*donor.DeviceContext, error) {
 			return nil, fmt.Errorf("device data collection failed: %w", err)
 		}
 	}
+	if buildOpts.nvmeTrace != "" {
+		if err := donor.AttachNVMeTrace(ctx, buildOpts.nvmeTrace, buildOpts.nvmeTraceController); err != nil {
+			return nil, fmt.Errorf("NVMe trace import: %w", err)
+		}
+		slog.Info("NVMe trace evidence imported", "commands", len(ctx.NVMeTrace.Commands), "observed_queues", len(ctx.NVMeTrace.Queues), "mmio_observed", false, "unfinished_commands", ctx.NVMeTrace.UnfinishedCommands, "unmatched_completions", ctx.NVMeTrace.UnmatchedCompletions)
+	}
 	if buildOpts.behaviorRules != "" {
 		rules, loadErr := behavior.LoadRuleSet(buildOpts.behaviorRules)
 		if loadErr != nil {
@@ -184,6 +195,8 @@ func printBuildSummary(ctx *donor.DeviceContext, b *board.Board) {
 }
 
 func init() {
+	buildCmd.Flags().StringVar(&buildOpts.nvmeTrace, "nvme-trace", "", "import saved NVMe tracepoint text with --from-json (no hardware access)")
+	buildCmd.Flags().StringVar(&buildOpts.nvmeTraceController, "nvme-trace-controller", "", "controller name in trace explicitly associated with donor snapshot, e.g. nvme0")
 	buildCmd.Flags().StringVar(&buildOpts.bdf, "bdf", "", "donor device BDF address (e.g. 0000:03:00.0)")
 	buildCmd.Flags().StringVar(&buildOpts.board, "board", "", "target FPGA board name (required, e.g. PCIeSquirrel)")
 	buildCmd.Flags().StringVar(&buildOpts.fromJSON, "from-json", "", "load donor device data from JSON file (offline build)")

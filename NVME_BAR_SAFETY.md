@@ -1,5 +1,8 @@
 # NVMe live BAR collection safety
 
+Offline queue trace evidence and specified doorbell topology are documented in
+[NVME_PHASE4.md](NVME_PHASE4.md).
+
 For the opt-in NVMe 1.3 optional-descriptor phase, its specification references,
 capability gates and exclusions, see [NVME_PHASE2.md](NVME_PHASE2.md).
 
