@@ -32,6 +32,8 @@ type Collector struct {
 type CollectOptions struct {
 	// NVMeMSIXSnapshot: off (default), table, pba or all. Experimental live reads.
 	NVMeMSIXSnapshot string
+	// NVMeOptionalSnapshot enables the reviewed NVMe 1.3 descriptor-only policy.
+	NVMeOptionalSnapshot bool
 }
 
 func NewCollectorWithOptions(options CollectOptions) *Collector {
@@ -72,6 +74,12 @@ func (c *Collector) Collect(bdf pci.BDF) (*DeviceContext, error) {
 	if msixMode != baraccess.MSIXSnapshotOff && !isNVMeClass(dev.ClassCode) {
 		return nil, fmt.Errorf("--nvme-msix-snapshot requires an NVMe-class donor")
 	}
+	if c.options.NVMeOptionalSnapshot && !isNVMeClass(dev.ClassCode) {
+		return nil, fmt.Errorf("--nvme-optional-snapshot requires an NVMe-class donor")
+	}
+	if c.options.NVMeOptionalSnapshot && dev.Driver != "nvme" {
+		return nil, fmt.Errorf("--nvme-optional-snapshot requires the native nvme driver already bound; no automatic rebind for this mode")
+	}
 
 	cs, err := c.collectConfigSpace(bdf)
 	if err != nil {
@@ -93,6 +101,9 @@ func (c *Collector) Collect(bdf pci.BDF) (*DeviceContext, error) {
 	}
 
 	ctx.BARContents = c.collectBARMemory(bdf, bars, visit)
+	if err := c.collectNVMeOptionalSnapshot(ctx); err != nil {
+		return nil, err
+	}
 	ctx.BARProfiles = c.collectBARProfiles(ctx.Device.ClassCode, bars, ctx.BARContents)
 	ctx.Capabilities = pci.ParseCapabilities(cs)
 	ctx.ExtCapabilities = pci.ParseExtCapabilities(cs)

@@ -16,19 +16,20 @@ import (
 
 // buildFlags groups all build command flags.
 type buildFlags struct {
-	bdf              string
-	board            string
-	vivadoPath       string
-	output           string
-	skipVivado       bool
-	jobs             int
-	timeout          int
-	libDir           string
-	fromJSON         string
-	stockBar         bool
-	behaviorRules    string
-	force            bool
-	nvmeMSIXSnapshot string
+	bdf                  string
+	board                string
+	vivadoPath           string
+	output               string
+	skipVivado           bool
+	jobs                 int
+	timeout              int
+	libDir               string
+	fromJSON             string
+	stockBar             bool
+	behaviorRules        string
+	force                bool
+	nvmeMSIXSnapshot     string
+	nvmeOptionalSnapshot bool
 }
 
 var buildOpts buildFlags
@@ -104,6 +105,9 @@ func runBuild(cmd *cobra.Command, args []string) error {
 func loadDonorContext() (*donor.DeviceContext, error) {
 	var ctx *donor.DeviceContext
 	var err error
+	if buildOpts.nvmeOptionalSnapshot && buildOpts.fromJSON != "" {
+		return nil, fmt.Errorf("--nvme-optional-snapshot requires live --bdf collection; cannot be used with --from-json")
+	}
 	msixMode, err := baraccess.ParseMSIXSnapshotMode(buildOpts.nvmeMSIXSnapshot)
 	if err != nil {
 		return nil, err
@@ -130,7 +134,9 @@ func loadDonorContext() (*donor.DeviceContext, error) {
 		}
 		slog.Info("target device", "bdf", bdf.String())
 		slog.Info("collecting donor device data")
-		collector := donor.NewCollectorWithOptions(donor.CollectOptions{NVMeMSIXSnapshot: string(msixMode)})
+		collector := donor.NewCollectorWithOptions(donor.CollectOptions{
+			NVMeMSIXSnapshot: string(msixMode), NVMeOptionalSnapshot: buildOpts.nvmeOptionalSnapshot,
+		})
 		ctx, err = collector.Collect(bdf)
 		if err != nil {
 			return nil, fmt.Errorf("device data collection failed: %w", err)
@@ -186,6 +192,7 @@ func init() {
 	buildCmd.Flags().BoolVar(&buildOpts.stockBar, "stock-bar", false, "use stock bar controller (diagnostic: skip custom SV modules)")
 	buildCmd.Flags().BoolVar(&buildOpts.force, "force", false, "ignore donor BAR > board BRAM check")
 	buildCmd.Flags().StringVar(&buildOpts.nvmeMSIXSnapshot, "nvme-msix-snapshot", "off", "EXPERIMENTAL live NVMe BAR0 MSI-X diagnostic snapshot: off, table, pba, all (targeted MMIO can still reboot the host)")
+	buildCmd.Flags().BoolVar(&buildOpts.nvmeOptionalSnapshot, "nvme-optional-snapshot", false, "EXPERIMENTAL NVMe 1.3 CMBSZ, conditional CMBLOC and CAP-gated BPINFO diagnostic reads; no memory dump or writes")
 
 	_ = buildCmd.MarkFlagRequired("board")
 

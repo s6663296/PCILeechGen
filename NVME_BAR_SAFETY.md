@@ -1,5 +1,8 @@
 # NVMe live BAR collection safety
 
+For the opt-in NVMe 1.3 optional-descriptor phase, its specification references,
+capability gates and exclusions, see [NVME_PHASE2.md](NVME_PHASE2.md).
+
 ## Finding
 
 The former sysfs collection path was `Collector.Collect` -> `collectBARMemory`
