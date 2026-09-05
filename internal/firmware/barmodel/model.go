@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/sercanarga/pcileechgen/internal/donor"
+	"github.com/sercanarga/pcileechgen/internal/donor/baraccess"
 	"github.com/sercanarga/pcileechgen/internal/firmware/devclass"
 	"github.com/sercanarga/pcileechgen/internal/pci"
 	"github.com/sercanarga/pcileechgen/internal/util"
@@ -162,7 +163,10 @@ func ModelForBIR(models []*BARModel, bir int) *BARModel {
 func BuildBARModel(barData []byte, classCode uint32, profile *donor.BARProfile) *BARModel {
 	// Use probe data when available, but bail if VFIO reported
 	// everything as writable (breaks CC->CSTS handshake etc).
-	if profile != nil && len(profile.Probes) > 0 {
+	// A read-only NVMe snapshot has no measured write masks. Use the existing
+	// spec model so zero masks do not disable CC/AQA/ASQ/ACQ writes or drop
+	// currently-zero registers required for controller initialization.
+	if profile != nil && len(profile.Probes) > 0 && profile.ReadPolicy != baraccess.NVMeReadPolicy {
 		if !isProbeDataReliable(profile) {
 			slog.Warn("BAR probe data unreliable (all registers report fully writable), falling back to spec-based model",
 				"probes", len(profile.Probes))
