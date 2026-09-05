@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/sercanarga/pcileechgen/internal/donor/baraccess"
 	"github.com/sercanarga/pcileechgen/internal/donor/vfio"
 	"github.com/sercanarga/pcileechgen/internal/firmware/devclass"
 	"github.com/sercanarga/pcileechgen/internal/pci"
@@ -24,7 +25,17 @@ const (
 
 // Collector gathers donor PCI data from sysfs.
 type Collector struct {
-	sysfs *SysfsReader
+	sysfs   *SysfsReader
+	options CollectOptions
+}
+
+type CollectOptions struct {
+	// NVMeMSIXSnapshot: off (default), table, pba or all. Experimental live reads.
+	NVMeMSIXSnapshot string
+}
+
+func NewCollectorWithOptions(options CollectOptions) *Collector {
+	return &Collector{sysfs: NewSysfsReader(), options: options}
 }
 
 func NewCollector() *Collector {
@@ -41,6 +52,10 @@ func NewCollectorWithSysfs(sr *SysfsReader) *Collector {
 }
 
 func (c *Collector) Collect(bdf pci.BDF) (*DeviceContext, error) {
+	msixMode, err := baraccess.ParseMSIXSnapshotMode(c.options.NVMeMSIXSnapshot)
+	if err != nil {
+		return nil, err
+	}
 	ctx := &DeviceContext{
 		CollectedAt: time.Now(),
 		ToolVersion: version.Version,
@@ -54,6 +69,9 @@ func (c *Collector) Collect(bdf pci.BDF) (*DeviceContext, error) {
 		return nil, fmt.Errorf("failed to read device info for %s: %w", bdf, err)
 	}
 	ctx.Device = *dev
+	if msixMode != baraccess.MSIXSnapshotOff && !isNVMeClass(dev.ClassCode) {
+		return nil, fmt.Errorf("--nvme-msix-snapshot requires an NVMe-class donor")
+	}
 
 	cs, err := c.collectConfigSpace(bdf)
 	if err != nil {
@@ -82,6 +100,9 @@ func (c *Collector) Collect(bdf pci.BDF) (*DeviceContext, error) {
 	ctx.NVMeIdentity = c.collectNVMeIdentity(bdf, ctx.Device.ClassCode, visit)
 
 	if err := c.validateBARContents(ctx); err != nil {
+		return nil, err
+	}
+	if err := c.collectNVMeMSIXSnapshot(ctx, msixMode); err != nil {
 		return nil, err
 	}
 

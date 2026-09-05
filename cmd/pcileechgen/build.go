@@ -6,6 +6,7 @@ import (
 
 	"github.com/sercanarga/pcileechgen/internal/board"
 	"github.com/sercanarga/pcileechgen/internal/donor"
+	"github.com/sercanarga/pcileechgen/internal/donor/baraccess"
 	"github.com/sercanarga/pcileechgen/internal/donor/behavior"
 	"github.com/sercanarga/pcileechgen/internal/firmware"
 	"github.com/sercanarga/pcileechgen/internal/pci"
@@ -15,18 +16,19 @@ import (
 
 // buildFlags groups all build command flags.
 type buildFlags struct {
-	bdf           string
-	board         string
-	vivadoPath    string
-	output        string
-	skipVivado    bool
-	jobs          int
-	timeout       int
-	libDir        string
-	fromJSON      string
-	stockBar      bool
-	behaviorRules string
-	force         bool
+	bdf              string
+	board            string
+	vivadoPath       string
+	output           string
+	skipVivado       bool
+	jobs             int
+	timeout          int
+	libDir           string
+	fromJSON         string
+	stockBar         bool
+	behaviorRules    string
+	force            bool
+	nvmeMSIXSnapshot string
 }
 
 var buildOpts buildFlags
@@ -102,6 +104,13 @@ func runBuild(cmd *cobra.Command, args []string) error {
 func loadDonorContext() (*donor.DeviceContext, error) {
 	var ctx *donor.DeviceContext
 	var err error
+	msixMode, err := baraccess.ParseMSIXSnapshotMode(buildOpts.nvmeMSIXSnapshot)
+	if err != nil {
+		return nil, err
+	}
+	if buildOpts.fromJSON != "" && msixMode != baraccess.MSIXSnapshotOff {
+		return nil, fmt.Errorf("--nvme-msix-snapshot requires live --bdf collection; cannot be used with --from-json")
+	}
 	if buildOpts.fromJSON != "" && buildOpts.bdf != "" {
 		return nil, fmt.Errorf("--bdf and --from-json are mutually exclusive")
 	}
@@ -121,7 +130,7 @@ func loadDonorContext() (*donor.DeviceContext, error) {
 		}
 		slog.Info("target device", "bdf", bdf.String())
 		slog.Info("collecting donor device data")
-		collector := donor.NewCollector()
+		collector := donor.NewCollectorWithOptions(donor.CollectOptions{NVMeMSIXSnapshot: string(msixMode)})
 		ctx, err = collector.Collect(bdf)
 		if err != nil {
 			return nil, fmt.Errorf("device data collection failed: %w", err)
@@ -176,6 +185,7 @@ func init() {
 	buildCmd.Flags().StringVar(&buildOpts.libDir, "lib-dir", "lib/pcileech-fpga", "path to pcileech-fpga library")
 	buildCmd.Flags().BoolVar(&buildOpts.stockBar, "stock-bar", false, "use stock bar controller (diagnostic: skip custom SV modules)")
 	buildCmd.Flags().BoolVar(&buildOpts.force, "force", false, "ignore donor BAR > board BRAM check")
+	buildCmd.Flags().StringVar(&buildOpts.nvmeMSIXSnapshot, "nvme-msix-snapshot", "off", "EXPERIMENTAL live NVMe BAR0 MSI-X diagnostic snapshot: off, table, pba, all (targeted MMIO can still reboot the host)")
 
 	_ = buildCmd.MarkFlagRequired("board")
 

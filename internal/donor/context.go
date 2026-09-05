@@ -21,6 +21,8 @@ type MSIXData struct {
 	PBABIR      int             `json:"pba_bir"`
 	PBAOffset   uint32          `json:"pba_offset"`
 	Entries     []pci.MSIXEntry `json:"entries"`
+	// Snapshot is opt-in diagnostic live state, NOT firmware initialization data.
+	Snapshot *MSIXSnapshot `json:"snapshot,omitempty"`
 }
 
 // NVMeIdentity holds NVMe controller strings captured from the donor device.
